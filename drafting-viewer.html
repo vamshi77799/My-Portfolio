@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Viewer</title>
+    <style>
+        :root {
+            --bg-workspace: #1E1E1E; /* Dark CAD background */
+            --bg-toolbar: rgba(30, 30, 30, 0.85);
+            --text-on-dark: #F5F5F7;
+            --accent-blue: #0A84FF; /* iOS Dark Mode Blue */
+            --font-stack: "SF Pro Display", -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg-workspace);
+            color: var(--text-on-dark);
+            font-family: var(--font-stack);
+            height: 100vh; display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- FLOATING TOOLBAR --- */
+        .toolbar-container {
+            position: absolute; top: 20px; left: 0; right: 0;
+            display: flex; justify-content: center;
+            z-index: 100; pointer-events: none; /* Let clicks pass through around the bar */
+        }
+
+        .toolbar {
+            pointer-events: auto;
+            background: rgba(50, 50, 50, 0.8);
+            backdrop-filter: saturate(180%) blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 100px;
+            display: flex; align-items: center; gap: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: slideDown 0.5s ease-out;
+        }
+
+        .doc-title {
+            font-size: 14px; font-weight: 600; color: white;
+            padding: 0 10px; border-right: 1px solid rgba(255,255,255,0.2);
+            margin-right: 5px;
+        }
+
+        .tool-btn {
+            background: transparent; border: none; cursor: pointer;
+            color: rgba(255,255,255,0.8);
+            display: flex; align-items: center; justify-content: center;
+            padding: 8px; border-radius: 50%;
+            transition: all 0.2s; text-decoration: none;
+        }
+        .tool-btn:hover { background: rgba(255,255,255,0.1); color: white; transform: scale(1.05); }
+        .tool-btn svg { width: 20px; height: 20px; }
+        
+        .btn-close { color: #FF453A; /* iOS Red */ }
+        .btn-close:hover { background: rgba(255, 69, 58, 0.2); }
+
+        .btn-primary { color: var(--accent-blue); }
+
+        /* --- VIEWER AREA --- */
+        .viewport {
+            flex: 1; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            padding: 80px 40px 40px; /* Top padding clears the toolbar */
+            box-sizing: border-box;
+        }
+
+        .paper-shadow {
+            width: 100%; height: 100%; max-width: 1200px;
+            background: white;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5); /* Deep shadow */
+            animation: zoomIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+        }
+
+        iframe { width: 100%; height: 100%; border: none; display: block; background: white; }
+
+        /* ERRORS */
+        .no-preview {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: rgba(255,255,255,0.5);
+        }
+        .no-preview svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <div class="toolbar-container">
+        <div class="toolbar">
+            <a href="drafting.html" class="tool-btn btn-close" title="Close Viewer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </a>
+            
+            <span class="doc-title" id="docTitle">Drawing</span>
+            
+            <a href="#" id="pdfBtn" class="tool-btn" download title="Download PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            </a>
+            
+            <a href="#" id="dwgBtn" class="tool-btn btn-primary" download title="Download Source DWG">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </a>
+        </div>
+    </div>
+
+    <div class="viewport">
+        <div class="paper-shadow">
+            <div id="noPreview" class="no-preview" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                <br>Preview not available.<br>Please download the file.
+            </div>
+            <iframe id="pdfFrame" src=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const folder = params.get('folder');
+        const pdfFile = params.get('pdf');
+        const dwgFile = params.get('dwg');
+        const name = params.get('name');
+        const basePath = "drafting/";
+
+        // Set Title
+        if(name) document.getElementById('docTitle').textContent = name;
+
+        // Elements
+        const pdfBtn = document.getElementById('pdfBtn');
+        const dwgBtn = document.getElementById('dwgBtn');
+        const pdfFrame = document.getElementById('pdfFrame');
+        const noPreview = document.getElementById('noPreview');
+
+        // Logic
+        if (pdfFile && folder) {
+            const fullPdfPath = `${basePath}${folder}/${pdfFile}`;
+            pdfFrame.src = fullPdfPath;
+            pdfBtn.href = fullPdfPath;
+            pdfFrame.onerror = () => { pdfFrame.style.display = 'none'; noPreview.style.display = 'block'; };
+        } else {
+            pdfFrame.style.display = 'none';
+            pdfBtn.style.display = 'none';
+            noPreview.style.display = 'block';
+        }
+
+        if (dwgFile && folder) {
+            dwgBtn.href = `${basePath}${folder}/${dwgFile}`;
+        } else {
+            dwgBtn.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

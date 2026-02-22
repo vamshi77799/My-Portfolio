@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAM Projects Library</title>
+    
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+    <style>
+        /* =========================================
+           1. LIBRARY STYLES
+           ========================================= */
+        :root {
+            --bg-color: #fbfbfd;
+            --text-main: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-blue: #0071e3;
+            --card-gradient: linear-gradient(180deg, #f5f5f7 0%, #e1e1e6 100%);
+            --card-border: 1px solid rgba(255,255,255,0.8);
+            --shadow-soft: 0 4px 6px rgba(0,0,0,0.02), 0 10px 15px rgba(0,0,0,0.03);
+            --font-stack: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            transition: background 0.3s ease;
+        }
+
+        #library-view {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            animation: fadeUp 0.6s ease forwards;
+        }
+
+        .header { text-align: center; margin-bottom: 50px; }
+        .header h1 { font-size: 42px; font-weight: 700; margin-bottom: 8px; }
+        .header p { font-size: 19px; color: var(--text-secondary); }
+
+        .nav-back-home {
+            position: absolute; top: 40px; right: 40px;
+            display: flex; align-items: center; gap: 5px;
+            color: var(--accent-blue); text-decoration: none; font-weight: 500;
+        }
+        .nav-back-home:hover { text-decoration: underline; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 30px;
+            justify-content: center;
+        }
+
+        .file-card {
+            background: var(--card-gradient);
+            border: var(--card-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: var(--shadow-soft);
+            color: var(--text-main);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .file-card:hover { transform: translateY(-6px); }
+
+        .icon-box {
+            width: 80px; height: 80px;
+            background: white; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            font-size: 32px;
+        }
+
+        .card-title { font-size: 22px; font-weight: 700; margin-bottom: 30px; }
+
+        .button-group { display: flex; gap: 12px; width: 100%; }
+        .btn-action {
+            flex: 1; padding: 12px 0; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-blue { background: #0071e3; color: white; box-shadow: 0 2px 5px rgba(0, 113, 227, 0.2); }
+        .btn-blue:hover { background: #005bb5; transform: translateY(-1px); }
+        .btn-gray { background: #e5e5ea; color: #1d1d1f; }
+        .btn-gray:hover { background: #d1d1d6; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* =========================================
+           2. PROJECT VIEWER & SIMULATOR
+           ========================================= */
+        #project-view {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1E1E1E; color: #F5F5F7; flex-direction: column; z-index: 9999;
+        }
+        body.mode-viewer { overflow: hidden; }
+        body.mode-viewer #project-view { display: flex; }
+        body.mode-viewer #library-view { display: none; }
+
+        .toolbar-container {
+            position: absolute; top: 20px; left: 0; right: 0;
+            display: flex; justify-content: center; z-index: 100; pointer-events: none;
+        }
+        .toolbar {
+            pointer-events: auto; background: rgba(40, 40, 40, 0.95);
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            padding: 6px; border-radius: 50px; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .btn-close {
+            background: #3a3a3c; border: none; color: #FF453A;
+            width: 36px; height: 36px; cursor: pointer; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-close:hover { background: rgba(255, 69, 58, 0.2); }
+        .project-title-badge {
+            background: #000; color: #fff; padding: 6px 12px; border-radius: 12px;
+            font-size: 13px; font-weight: 600; margin-right: 10px; border: 1px solid #333;
+        }
+        .switch-btn {
+            background: transparent; border: none; color: #aaa;
+            padding: 8px 16px; font-weight: 500; cursor: pointer;
+            border-radius: 20px; transition: 0.2s; font-size: 14px;
+        }
+        .switch-btn.active { background: #555; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .switch-btn:hover:not(.active) { color: white; }
+
+        .viewport { flex: 1; position: relative; width: 100%; height: 100%; overflow: hidden; }
+        .view-section {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .view-section.active { 
+            display: block; opacity: 1; pointer-events: auto;
+        }
+
+        model-viewer, video, iframe { width: 100%; height: 100%; border: none; outline: none; }
+        
+        /* G-Code Viewer Styles */
+        #view-gcode { background: #111; overflow: auto; padding: 20px; box-sizing: border-box; }
+        #gcode-content {
+            font-family: "SF Mono", "Consolas", "Courier New", monospace;
+            color: #0f0;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* SIMULATOR STYLES */
+        #view-simulator { background: #111; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        #sim-canvas { background: #080808; cursor: grab; }
+        #sim-canvas:active { cursor: grabbing; }
+        
+        .sim-controls {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(30,30,30,0.85); padding: 12px 24px; border-radius: 30px;
+            display: flex; flex-direction: column; gap: 10px; align-items: center; 
+            backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sim-row {
+            display: flex; gap: 15px; align-items: center; width: 100%; justify-content: center;
+        }
+        
+        .sim-btn {
+            background: #0071e3; color: white; border: none; padding: 8px 20px;
+            border-radius: 18px; cursor: pointer; font-weight: 600; font-size: 14px;
+            transition: 0.2s; white-space: nowrap;
+        }
+        .sim-btn:hover { background: #005bb5; transform: scale(1.05); }
+
+        .sim-info {
+            color: #aaa; font-family: monospace; font-size: 12px;
+            display: flex; gap: 15px;
+        }
+
+        /* Speed Slider */
+        .speed-control {
+            display: flex; align-items: center; gap: 10px; color: #ccc; font-size: 13px; font-weight: 500;
+        }
+        input[type=range] { width: 100px; accent-color: #0071e3; }
+        
+        .btn-download {
+            position: fixed; top: 100px; right: 30px;
+            background: #FF9500; color: #000;
+            padding: 10px 20px; border-radius: 20px;
+            text-decoration: none; font-weight: 700; font-size: 13px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 200;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div id="library-view">
+        <a href="index.html" class="nav-back-home">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Home
+        </a>
+
+        <div class="header">
+            <h1>CAM Projects</h1>
+            <p>Select an option to view project details or simulation.</p>
+        </div>
+
+        <div class="grid">
+            <div class="file-card">
+                <div class="icon-box">⚙️</div>
+                <div class="card-title">Adaptive Clearing</div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openProject('part1', '3d')">View Project</button>
+                </div>
+            </div>
+
+            <div class="file-card">
+                <div class="icon-box">🍾</div>
+                <div class="card-title">Bottle </div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openProject('part2', '3d')">View Project</button>
+                </div>
+            </div>
+
+            <div class="file-card">
+                <div class="icon-box">💧</div>
+                <div class="card-title">Water Can </div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openProject('watercan', '3d')">View Project</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="project-view">
+        <div class="toolbar-container">
+            <div class="toolbar">
+                <button onclick="closeProject()" class="btn-close" title="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                <div id="active-project-name" class="project-title-badge">Loading...</div>
+                
+                <button class="switch-btn active" onclick="switchView('3d')">3D Model</button>
+                <button class="switch-btn" onclick="switchView('video')">Video</button>
+                <button class="switch-btn" onclick="switchView('pdf')">Setup Sheet</button>
+                <button class="switch-btn" onclick="switchView('simulator')">Simulation</button>
+                <button class="switch-btn" onclick="switchView('gcode')">G-Code</button>
+            </div>
+        </div>
+
+        <div class="viewport">
+            <div id="view-3d" class="view-section active">
+                <model-viewer 
+                    id="model3d" 
+                    camera-controls 
+                    auto-rotate 
+                    shadow-intensity="1.5" 
+                    environment-image="neutral"
+                    style="width: 100%; height: 100%; touch-action: pan-y;">
+                </model-viewer>
+            </div>
+
+            <div id="view-video" class="view-section">
+                <video id="vidPlayer" controls loop playsinline></video>
+            </div>
+
+            <div id="view-pdf" class="view-section">
+                <iframe id="pdfFrame"></iframe>
+            </div>
+
+            <div id="view-gcode" class="view-section">
+                <a id="gcode-download" href="#" class="btn-download" download>Download .txt</a>
+                <pre id="gcode-content">Loading G-Code...</pre>
+            </div>
+
+            <div id="view-simulator" class="view-section">
+                <canvas id="sim-canvas"></canvas>
+                <div class="sim-controls">
+                    <div class="sim-row">
+                        <button class="sim-btn" onclick="toggleSimulation()">▶ Play/Pause</button>
+                        <button class="sim-btn" onclick="resetSimulation()">↺ Reset</button>
+                        <div class="speed-control">
+                            <span>Speed:</span>
+                            <input type="range" id="speedSlider" min="0.1" max="5.0" step="0.1" value="1.0" oninput="updateSpeed(this.value)">
+                            <span id="speedVal">1.0x</span>
+                        </div>
+                    </div>
+                    <div class="sim-row sim-info">
+                        <span id="sim-line">L: 0</span>
+                        <span>Drag: Rotate (Free) | Shift: Pan | Scroll: Zoom</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const projects = {
+            'part1': {
+                name: "Adaptive Clearing",
+                folder: 'part1',
+                glb: 'part1.glb',
+                video: 'video.mp4',
+                pdf: 'Part1.Group1.html.pdf',
+                gcode: 'G-Code.txt'
+            },
+            'part2': {
+                name: "Bottle",
+                folder: 'Bottle', 
+                glb: 'botella_clean.glb',
+                video: 'video.mp4',
+                pdf: 'botella clean.Group1.html.pdf',
+                gcode: 'botella clean.txt'
+            },
+            'watercan': {
+                name: "Water Can",
+                folder: 'water can', 
+                glb: '5l.glb',
+                video: 'video.mp4',
+                pdf: 'water can.pdf',
+                gcode: '5L.txt'
+            }
+        };
+
+        // --- GLOBALS ---
+        const model3d = document.getElementById('model3d');
+        const vidPlayer = document.getElementById('vidPlayer');
+        const pdfFrame = document.getElementById('pdfFrame');
+        const gcodeContent = document.getElementById('gcode-content');
+        const gcodeDownload = document.getElementById('gcode-download');
+        const titleBadge = document.getElementById('active-project-name');
+        
+        // --- SIMULATOR GLOBALS ---
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let pathPoints = []; 
+        let currentLine = 0;
+        let isPlaying = false;
+        let animFrameId;
+        let simSpeed = 1.0; 
+
+        // View Transform State
+        let view = {
+            scale: 1, 
+            rotX: 45 * (Math.PI/180), 
+            rotZ: 45 * (Math.PI/180), 
+            panX: 0,
+            panY: 0
+        };
+
+        // Mouse State
+        let isDragging = false;
+        let lastMouse = { x: 0, y: 0 };
+        let mouseButton = 0;
+
+        // --- NAVIGATION ---
+        const params = new URLSearchParams(window.location.search);
+        const urlProject = params.get('project');
+        if (urlProject && projects[urlProject]) openProject(urlProject, '3d');
+
+        function openProject(key, initialView) {
+            const config = projects[key];
+            if(!config) return;
+
+            document.body.classList.add('mode-viewer');
+            titleBadge.innerText = config.name;
+            const basePath = `cam/${config.folder}/`;
+
+            model3d.src = basePath + config.glb;
+            vidPlayer.src = basePath + config.video;
+            pdfFrame.src = basePath + config.pdf + "#view=Fit";
+            
+            // Clear current G-Code view
+            gcodeContent.innerText = "Loading...";
+            gcodeDownload.href = basePath + config.gcode;
+
+            // Load G-Code (For Text View AND Simulation)
+            fetch(basePath + config.gcode)
+                .then(r => r.text())
+                .then(text => {
+                    // 1. Populate Text View
+                    gcodeContent.innerText = text;
+                    // 2. Parse for Simulation
+                    parseGCode(text);
+                })
+                .catch(e => {
+                    console.error("G-Code Load Error", e);
+                    gcodeContent.innerText = "Error loading G-Code file.";
+                });
+
+            switchView(initialView || '3d');
+        }
+
+        function closeProject() {
+            document.body.classList.remove('mode-viewer');
+            vidPlayer.pause();
+            isPlaying = false;
+            cancelAnimationFrame(animFrameId);
+            model3d.src = ""; 
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.switch-btn').forEach(btn => {
+                btn.classList.remove('active');
+                // Highlight button based on view name
+                const btnText = btn.innerText.toLowerCase();
+                if (viewName === 'pdf' && btnText.includes('setup')) btn.classList.add('active');
+                else if (viewName === 'simulator' && btnText.includes('simulation')) btn.classList.add('active');
+                else if (viewName === 'gcode' && btnText.includes('g-code')) btn.classList.add('active');
+                else if (viewName === 'video' && btnText.includes('video')) btn.classList.add('active');
+                else if (viewName === '3d' && btnText.includes('3d')) btn.classList.add('active');
+            });
+
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+            
+            if (viewName !== 'video') vidPlayer.pause();
+
+            if(viewName === 'simulator') {
+                resizeCanvas();
+                centerToolpath(); 
+                requestAnimationFrame(drawScene);
+            }
+        }
+
+        // --- G-CODE PARSER ---
+        function parseGCode(text) {
+            pathPoints = [];
+            let x = 0, y = 0, z = 0;
+            const lines = text.split('\n');
+            
+            lines.forEach(line => {
+                const xM = line.match(/X([-\d\.]+)/);
+                const yM = line.match(/Y([-\d\.]+)/);
+                const zM = line.match(/Z([-\d\.]+)/);
+                
+                let hasMove = false;
+                if(xM) { x = parseFloat(xM[1]); hasMove = true; }
+                if(yM) { y = parseFloat(yM[1]); hasMove = true; }
+                if(zM) { z = parseFloat(zM[1]); hasMove = true; }
+                
+                if(hasMove) {
+                    pathPoints.push({x, y, z});
+                }
+            });
+            resetSimulation();
+        }
+
+        // --- AUTO-CENTER / AUTO-ZOOM FUNCTION ---
+        function centerToolpath() {
+            if (pathPoints.length === 0) return;
+
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            let minZ = Infinity, maxZ = -Infinity;
+
+            pathPoints.forEach(p => {
+                if(p.x < minX) minX = p.x; if(p.x > maxX) maxX = p.x;
+                if(p.y < minY) minY = p.y; if(p.y > maxY) maxY = p.y;
+                if(p.z < minZ) minZ = p.z; if(p.z > maxZ) maxZ = p.z;
+            });
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const depth = maxZ - minZ;
+            
+            const maxDim = Math.max(width, height, depth);
+            if(maxDim > 0) {
+                view.scale = (Math.min(canvas.width, canvas.height) / maxDim) * 0.5;
+            } else {
+                view.scale = 10;
+            }
+
+            view.panX = 0;
+            view.panY = 0;
+            view.rotX = 45 * (Math.PI/180);
+            view.rotZ = 45 * (Math.PI/180);
+        }
+
+        // --- 3D PROJECTION ENGINE (FULL 6DOF) ---
+        function project(p) {
+            const cx = canvas.width / 2 + view.panX;
+            const cy = canvas.height / 2 + view.panY;
+
+            let x1 = p.x * Math.cos(view.rotZ) - p.y * Math.sin(view.rotZ);
+            let y1 = p.x * Math.sin(view.rotZ) + p.y * Math.cos(view.rotZ);
+            let z1 = p.z;
+
+            let y2 = y1 * Math.cos(view.rotX) - z1 * Math.sin(view.rotX);
+            let z2 = y1 * Math.sin(view.rotX) + z1 * Math.cos(view.rotX);
+
+            return {
+                x: cx + x1 * view.scale,
+                y: cy - y2 * view.scale 
+            };
+        }
+
+        // --- RENDER LOOP ---
+        function drawScene() {
+            ctx.fillStyle = "#080808"; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGrid();
+
+            if (pathPoints.length > 0) {
+                ctx.beginPath();
+                ctx.lineWidth = 0.5;
+                ctx.strokeStyle = "#00ff00"; 
+
+                const startProj = project(pathPoints[0]);
+                ctx.moveTo(startProj.x, startProj.y);
+
+                let limit = isPlaying ? currentLine : pathPoints.length; 
+                
+                if (isPlaying) {
+                    currentLine += simSpeed; 
+                    if (currentLine >= pathPoints.length) {
+                        currentLine = pathPoints.length;
+                        isPlaying = false;
+                    }
+                    document.getElementById('sim-line').innerText = `L: ${Math.floor(currentLine)}`;
+                }
+
+                const step = view.scale < 5 ? 2 : 1; 
+
+                for (let i = 1; i < limit; i += step) {
+                    const proj = project(pathPoints[Math.floor(i)]);
+                    ctx.lineTo(proj.x, proj.y);
+                }
+                ctx.stroke();
+
+                if (limit > 0 && limit < pathPoints.length) {
+                    const head = project(pathPoints[Math.floor(limit) - 1]);
+                    ctx.fillStyle = "#ff0000";
+                    ctx.beginPath();
+                    ctx.arc(head.x, head.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            if(isPlaying) {
+                animFrameId = requestAnimationFrame(drawScene);
+            }
+        }
+
+        function drawGrid() {
+            ctx.beginPath();
+            ctx.strokeStyle = "#222";
+            ctx.lineWidth = 1;
+            const size = 100; const steps = 10;
+            
+            for(let i = -steps; i <= steps; i++) {
+                const p1 = project({x: -size, y: i*10, z: 0});
+                const p2 = project({x: size, y: i*10, z: 0});
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+
+                const p3 = project({x: i*10, y: -size, z: 0});
+                const p4 = project({x: i*10, y: size, z: 0});
+                ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+            }
+            ctx.stroke();
+        }
+
+        // --- CONTROLS ---
+        function toggleSimulation() {
+            if(!isPlaying && currentLine >= pathPoints.length) currentLine = 0;
+            isPlaying = !isPlaying;
+            if(isPlaying) drawScene();
+        }
+
+        function resetSimulation() {
+            isPlaying = false;
+            currentLine = 0;
+            centerToolpath();
+            requestAnimationFrame(drawScene);
+            document.getElementById('sim-line').innerText = `L: 0`;
+        }
+
+        function updateSpeed(val) {
+            simSpeed = parseFloat(val);
+            document.getElementById('speedVal').innerText = simSpeed.toFixed(1) + 'x';
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            requestAnimationFrame(drawScene);
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- MOUSE EVENTS ---
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            lastMouse = { x: e.clientX, y: e.clientY };
+            mouseButton = e.button;
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        canvas.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastMouse.x;
+            const dy = e.clientY - lastMouse.y;
+            lastMouse = { x: e.clientX, y: e.clientY };
+
+            if (mouseButton === 0 && !e.shiftKey) {
+                view.rotZ -= dx * 0.01;
+                view.rotX -= dy * 0.01; 
+            }
+            
+            if (mouseButton === 2 || (mouseButton === 0 && e.shiftKey)) {
+                view.panX += dx;
+                view.panY += dy;
+            }
+
+            requestAnimationFrame(drawScene);
+        });
+
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomSpeed = 0.05;
+            view.scale *= (1 - Math.sign(e.deltaY) * zoomSpeed);
+            view.scale = Math.max(0.5, Math.min(200, view.scale));
+            requestAnimationFrame(drawScene);
+        }, { passive: false });
+
+        model3d.addEventListener('load', () => {
+            if (model3d.model?.materials) {
+                for (const mat of model3d.model.materials) {
+                    mat.pbrMetallicRoughness.setBaseColorFactor([0.6, 0.6, 0.6, 1.0]); 
+                    mat.pbrMetallicRoughness.setMetallicFactor(1.0); 
+                    mat.pbrMetallicRoughness.setRoughnessFactor(0.15);             
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding | Vamshi Krishna</title>
+    
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #fbfbfd;
+            --text-main: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-blue: #0071e3;
+            --font-stack: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding-bottom: 60px;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            display: inline-flex;
+            align-items: center;
+            color: var(--accent-blue);
+            font-weight: 500;
+            text-decoration: none;
+            font-size: 15px;
+            transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.7; }
+        .back-link svg { width: 18px; height: 18px; margin-right: 6px; }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 { font-size: 40px; font-weight: 700; margin-bottom: 10px; }
+        p.subtitle { font-size: 20px; color: var(--text-secondary); margin-bottom: 40px; }
+
+        /* TABS */
+        .tab-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: #e8e8ed;
+            padding: 4px;
+            border-radius: 12px;
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 10px 24px;
+            border-radius: 9px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .tab.active { background: #fff; color: #000; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+        /* EDITOR */
+        .workspace { display: flex; flex-direction: column; gap: 20px; }
+        .code-panel {
+            background: #1e1e1e;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            height: 500px; /* Increased height to show more code */
+        }
+        .panel-header {
+            background: #2d2d2d;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-controls { display: flex; align-items: center; gap: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .red { background: #ff5f56; } .yellow { background: #ffbd2e; } .green { background: #27c93f; }
+        .filename { color: #999; font-size: 12px; margin-left: 10px; font-family: monospace; }
+
+        .run-btn-header {
+            background: #34C759;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .run-btn-header:hover { opacity: 0.8; }
+
+        .code-content {
+            padding: 20px;
+            overflow: auto;
+            color: #d4d4d4;
+            font-family: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            flex-grow: 1;
+            white-space: pre; /* Preserves formatting */
+        }
+
+        /* FULLSCREEN MODAL */
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .fullscreen-overlay.active { display: flex; }
+
+        /* CANVAS FOR REAL-TIME AUDIO */
+        canvas#audioCanvas {
+            width: 95vw;
+            height: 90vh;
+            display: block;
+        }
+
+        .plot-container {
+            width: 98vw;
+            height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+        
+        .plot-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; 
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: #fff;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10000;
+        }
+        .close-btn:hover { background: #555; }
+        
+        .hidden { display: none; }
+        .loading-text { font-size: 18px; color: var(--text-secondary); margin-bottom: 20px; }
+    </style>
+
+    <py-config>
+        packages = ["pandas", "matplotlib", "numpy"]
+        [[fetch]]
+        from = "python/numbers/NACA 4412 copy.csv"
+        to_file = "NACA 4412 copy.csv"
+        [[fetch]]
+        from = "python/numbers/NACA 9412 copy.csv"
+        to_file = "NACA 9412 copy.csv"
+    </py-config>
+</head>
+<body>
+
+    <a href="index.html" class="back-link" onclick="cleanupResources()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        Back to Home
+    </a>
+
+    <div class="container">
+        <h1>Matplotlib Visualization</h1>
+        <p class="subtitle">Select a script and click "Run Full Screen" to generate the graphs.</p>
+
+        <div class="tab-container">
+            <button class="tab active" onclick="switchTab('4412')">NACA 4412</button>
+            <button class="tab" onclick="switchTab('9412')">NACA 9412</button>
+            <button class="tab" onclick="switchTab('audio')">Audio Monitor</button>
+        </div>
+
+        <div id="section-4412" class="workspace">
+            <div class="code-panel">
+                <div class="panel-header">
+                    <div class="header-controls">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="filename">NACA 4412.py</span>
+                    </div>
+                    <button class="run-btn-header" py-click="run_4412">▶ Run Full Screen</button>
+                </div>
+<pre class="code-content">
+import pandas as pd
+import matplotlib.pyplot as plt
+import math as mp
+
+# --- Load Data ---
+df = pd.read_csv("NACA 4412 copy.csv", header=5)
+
+def rotate(x_list, y_list, angle_deg):
+    rad = mp.radians(angle_deg)
+    new_x, new_y = [], []
+    for i, m in zip(x_list, y_list):
+        v = mp.cos(rad)*i - mp.sin(rad)*m
+        w = mp.sin(rad)*i + mp.cos(rad)*m
+        new_x.append(v)
+        new_y.append(w)
+    return new_x, new_y
+
+# Extract Columns
+x, y = df['X'], df["Yc"]
+cx, cy = df["Chord X"], df["Chord Y"]
+xu, yu = df["xu"], df["yu"]
+xl, yl = df["xl"], df["yl"]
+
+# --- Calculate Rotations (AOA) ---
+x1, y1 = rotate(x, y, -5)
+xu1, yu1 = rotate(xu, yu, -5)
+xl1, yl1 = rotate(xl, yl, -5)
+cx1, cy1 = rotate(cx, cy, -5)
+
+x2, y2 = rotate(x, y, -10)
+xu2, yu2 = rotate(xu, yu, -10)
+xl2, yl2 = rotate(xl, yl, -10)
+cx2, cy2 = rotate(cx, cy, -10)
+
+x3, y3 = rotate(x, y, -15)
+xu3, yu3 = rotate(xu, yu, -15)
+xl3, yl3 = rotate(xl, yl, -15)
+cx3, cy3 = rotate(cx, cy, -15)
+
+# --- Plotting ---
+plt.close('all')
+fig, a = plt.subplots(nrows=2, ncols=2, figsize=(24, 14), dpi=100)
+plt.subplots_adjust(hspace=0.3, wspace=0.2)
+
+plots = [
+    (a[0,0], "NACA 4412 (AOA 0°)", x, y, cx, cy, xu, yu, xl, yl),
+    (a[0,1], "NACA 4412 (AOA 5°)", x1, y1, cx1, cy1, xu1, yu1, xl1, yl1),
+    (a[1,0], "NACA 4412 (AOA 10°)", x2, y2, cx2, cy2, xu2, yu2, xl2, yl2),
+    (a[1,1], "NACA 4412 (AOA 15°)", x3, y3, cx3, cy3, xu3, yu3, xl3, yl3)
+]
+
+for ax, title, vx, vy, vcx, vcy, vxu, vyu, vxl, vyl in plots:
+    ax.set_aspect('equal', adjustable='datalim') 
+    ax.set_title(title, fontsize=18, color='red')
+    ax.plot(vx, vy, '--', markersize=3, c='black', label="Mean Camber")
+    ax.plot(vcx, vcy, 'r--', label="Chord Line")
+    ax.plot(vxu, vyu, 'g', label="Upper Surface")
+    ax.plot(vxl, vyl, 'b', label="Lower Surface")
+    ax.legend(fontsize=10, loc='upper right')
+    ax.grid(True, alpha=0.3)
+
+plt.show()
+</pre>
+            </div>
+        </div>
+
+        <div id="section-9412" class="workspace hidden">
+             <div class="code-panel">
+                <div class="panel-header">
+                    <div class="header-controls">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="filename">NACA 9412.py</span>
+                    </div>
+                    <button class="run-btn-header" py-click="run_9412">▶ Run Full Screen</button>
+                </div>
+<pre class="code-content">
+import pandas as pd
+import matplotlib.pyplot as plt
+import math as mp
+
+# --- Load Data ---
+df = pd.read_csv("NACA 9412 copy.csv", header=5)
+
+def rotate(x_list, y_list, angle_deg):
+    rad = mp.radians(angle_deg)
+    new_x, new_y = [], []
+    for i, m in zip(x_list, y_list):
+        v = mp.cos(rad)*i - mp.sin(rad)*m
+        w = mp.sin(rad)*i + mp.cos(rad)*m
+        new_x.append(v)
+        new_y.append(w)
+    return new_x, new_y
+
+# Extract Columns
+x, y = df['X'], df["Yc"]
+cx, cy = df["Chord X"], df["Chord Y"]
+xu, yu = df["xu"], df["yu"]
+xl, yl = df["xl"], df["yl"]
+
+# --- Calculate Rotations (AOA) ---
+x1, y1 = rotate(x, y, -5)
+xu1, yu1 = rotate(xu, yu, -5)
+xl1, yl1 = rotate(xl, yl, -5)
+cx1, cy1 = rotate(cx, cy, -5)
+
+x2, y2 = rotate(x, y, -10)
+xu2, yu2 = rotate(xu, yu, -10)
+xl2, yl2 = rotate(xl, yl, -10)
+cx2, cy2 = rotate(cx, cy, -10)
+
+x3, y3 = rotate(x, y, -15)
+xu3, yu3 = rotate(xu, yu, -15)
+xl3, yl3 = rotate(xl, yl, -15)
+cx3, cy3 = rotate(cx, cy, -15)
+
+# --- Plotting ---
+plt.close('all')
+fig, a = plt.subplots(nrows=2, ncols=2, figsize=(24, 14), dpi=100)
+plt.subplots_adjust(hspace=0.3, wspace=0.2)
+
+plots = [
+    (a[0,0], "NACA 9412 (AOA 0°)", x, y, cx, cy, xu, yu, xl, yl),
+    (a[0,1], "NACA 9412 (AOA 5°)", x1, y1, cx1, cy1, xu1, yu1, xl1, yl1),
+    (a[1,0], "NACA 9412 (AOA 10°)", x2, y2, cx2, cy2, xu2, yu2, xl2, yl2),
+    (a[1,1], "NACA 9412 (AOA 15°)", x3, y3, cx3, cy3, xu3, yu3, xl3, yl3)
+]
+
+for ax, title, vx, vy, vcx, vcy, vxu, vyu, vxl, vyl in plots:
+    ax.set_aspect('equal', adjustable='datalim')
+    ax.set_title(title, fontsize=18, color='red')
+    ax.plot(vx, vy, '--', c='black', label="Mean Camber")
+    ax.plot(vcx, vcy, 'r--', label="Chord Line")
+    ax.plot(vxu, vyu, 'g', label="Upper Surface")
+    ax.plot(vxl, vyl, 'b', label="Lower Surface")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=10)
+
+plt.show()
+</pre>
+            </div>
+        </div>
+
+        <div id="section-audio" class="workspace hidden">
+             <div class="code-panel">
+                <div class="panel-header">
+                    <div class="header-controls">
+                        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                        <span class="filename">audio.py</span>
+                    </div>
+                    <button class="run-btn-header" onclick="startRealTimeAudio()">▶ Run Live Monitor</button>
+                </div>
+<pre class="code-content">
+import pyaudio
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+# --- Configuration ---
+CHUNK = 1024       # Audio chunk size
+RATE = 44100       # Sampling rate
+HISTORY_SIZE = 300 # How many frames to keep in history
+
+# --- Setup PyAudio ---
+p = pyaudio.PyAudio()
+stream = p.open(format=pyaudio.paInt16,
+                channels=1,
+                rate=RATE,
+                input=True,
+                frames_per_buffer=CHUNK)
+
+# --- Setup Plotting (Dark Theme) ---
+plt.style.use('dark_background')
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Residual History Lists
+bass_hist, mid_hist, high_hist = [], [], []
+
+# Lines
+line_bass, = ax.plot([], [], color='#00FFFF', lw=1.0, label='Bass')
+line_mid,  = ax.plot([], [], color='#FF00FF', lw=1.0, label='Mids')
+line_high, = ax.plot([], [], color='#FFFF00', lw=1.0, label='Highs')
+
+# Styling
+ax.set_title('Frequency Residuals Monitor', color='white', fontsize=14)
+ax.set_ylim(0, 100)
+ax.set_xlim(0, HISTORY_SIZE)
+ax.grid(True, color='#333', linestyle=':')
+ax.legend(loc='upper right')
+
+def update(frame):
+    # Read raw audio
+    data = np.frombuffer(stream.read(CHUNK), dtype=np.int16)
+    
+    # FFT calculation
+    fft_data = np.abs(np.fft.rfft(data))
+    
+    # Calculate Frequency Bands
+    bass = np.mean(fft_data[0:10]) / 50    # Normalize roughly
+    mid  = np.mean(fft_data[10:50]) / 50
+    high = np.mean(fft_data[50:200]) / 50
+    
+    # Update History
+    bass_hist.append(bass)
+    mid_hist.append(mid)
+    high_hist.append(high)
+    
+    # Scroll Graph
+    if len(bass_hist) > HISTORY_SIZE:
+        bass_hist.pop(0)
+        mid_hist.pop(0)
+        high_hist.pop(0)
+        
+    # Set Data
+    line_bass.set_data(range(len(bass_hist)), bass_hist)
+    line_mid.set_data(range(len(mid_hist)), mid_hist)
+    line_high.set_data(range(len(high_hist)), high_hist)
+    
+    return line_bass, line_mid, line_high
+
+ani = animation.FuncAnimation(fig, update, interval=30, blit=True)
+plt.show()
+</pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullscreen-overlay" class="fullscreen-overlay">
+        <button class="close-btn" onclick="closeModal()">×</button>
+        <div class="loading-text" id="loading-msg">Initializing...</div>
+        
+        <div id="plot-target" class="plot-container"></div>
+        
+        <canvas id="audioCanvas" style="display:none;"></canvas>
+    </div>
+
+    <script>
+        function switchTab(id) {
+            document.getElementById('section-4412').classList.add('hidden');
+            document.getElementById('section-9412').classList.add('hidden');
+            document.getElementById('section-audio').classList.add('hidden');
+            
+            document.getElementById('section-' + id).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        let audioContext;
+        let animationId;
+
+        function cleanupResources() {
+            if (animationId) cancelAnimationFrame(animationId);
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('fullscreen-overlay').classList.remove('active');
+            
+            document.getElementById('plot-target').innerHTML = '';
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            document.getElementById('audioCanvas').style.display = 'none';
+            document.getElementById('plot-target').style.display = 'flex';
+            document.getElementById('loading-msg').style.display = 'block';
+        }
+
+        async function startRealTimeAudio() {
+            const overlay = document.getElementById('fullscreen-overlay');
+            const canvas = document.getElementById('audioCanvas');
+            const plotTarget = document.getElementById('plot-target');
+            const loadMsg = document.getElementById('loading-msg');
+            
+            overlay.classList.add('active');
+            plotTarget.style.display = 'none';
+            canvas.style.display = 'block';
+            loadMsg.textContent = "Requesting Microphone Access...";
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                loadMsg.style.display = 'none';
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                
+                analyser.fftSize = 2048; 
+                source.connect(analyser);
+
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                const ctx = canvas.getContext('2d');
+
+                const historyBass = [];
+                const historyMid = [];
+                const historyHigh = [];
+                let frameCount = 0;
+
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = window.innerWidth * dpr;
+                canvas.height = window.innerHeight * dpr;
+                ctx.scale(dpr, dpr);
+
+                function draw() {
+                    animationId = requestAnimationFrame(draw);
+                    analyser.getByteFrequencyData(dataArray);
+
+                    let bassSum = 0, midSum = 0, highSum = 0;
+                    
+                    for(let i=0; i<10; i++) bassSum += dataArray[i];
+                    for(let i=10; i<50; i++) midSum += dataArray[i];
+                    for(let i=50; i<200; i++) highSum += dataArray[i];
+
+                    let bVal = (bassSum / 10) / 2.55; 
+                    let mVal = (midSum / 40) / 2.55;
+                    let hVal = (highSum / 150) / 2.55;
+
+                    historyBass.push(bVal);
+                    historyMid.push(mVal);
+                    historyHigh.push(hVal);
+                    frameCount++;
+
+                    if (historyBass.length > window.innerWidth / 2) {
+                         historyBass.shift(); historyMid.shift(); historyHigh.shift();
+                    }
+
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(0, 0, w, h);
+
+                    ctx.strokeStyle = "#333";
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    for(let i=0; i<h; i+=50) { ctx.moveTo(0, i); ctx.lineTo(w, i); }
+                    ctx.stroke();
+
+                    function drawLine(data, color) {
+                        ctx.beginPath();
+                        ctx.lineWidth = 1.0; 
+                        ctx.strokeStyle = color;
+                        for(let i=0; i<data.length; i++) {
+                            let x = i * 2; 
+                            let y = h - (data[i] / 100 * (h - 100)) - 50; 
+                            if(i===0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.stroke();
+                    }
+
+                    drawLine(historyBass, '#00FFFF');
+                    drawLine(historyMid, '#FF00FF');
+                    drawLine(historyHigh, '#FFFF00');
+
+                    ctx.fillStyle = "white";
+                    ctx.font = "20px monospace";
+                    ctx.fillText("Frequency Residuals Monitor (Live Mic)", 20, 40);
+                    
+                    ctx.font = "12px monospace";
+                    ctx.fillStyle = "#00FFFF"; ctx.fillText("■ Bass (Low)", w - 150, 40);
+                    ctx.fillStyle = "#FF00FF"; ctx.fillText("■ Mids", w - 150, 60);
+                    ctx.fillStyle = "#FFFF00"; ctx.fillText("■ Highs", w - 150, 80);
+                }
+
+                draw();
+
+            } catch (err) {
+                console.error(err);
+                loadMsg.textContent = "Error: Could not access microphone. " + err;
+                loadMsg.style.display = 'block';
+            }
+        }
+    </script>
+
+    <script type="py">
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import math as mp
+        from pyscript import display
+        from js import document
+
+        def show_overlay():
+            document.getElementById('fullscreen-overlay').classList.add('active')
+            document.getElementById('audioCanvas').style.display = 'none'
+            document.getElementById('plot-target').style.display = 'flex'
+
+        def hide_loading():
+            document.getElementById('loading-msg').style.display = 'none'
+
+        # --- NACA 4412 LOGIC ---
+        def run_4412(event):
+            try:
+                show_overlay()
+                df = pd.read_csv("NACA 4412 copy.csv", header=5)
+                
+                def rotate(x_list, y_list, angle_deg):
+                    rad = mp.radians(angle_deg)
+                    new_x, new_y = [], []
+                    for i, m in zip(x_list, y_list):
+                        v = mp.cos(rad)*i - mp.sin(rad)*m
+                        w = mp.sin(rad)*i + mp.cos(rad)*m
+                        new_x.append(v)
+                        new_y.append(w)
+                    return new_x, new_y
+
+                x, y = df['X'], df["Yc"]
+                cx, cy = df["Chord X"], df["Chord Y"]
+                xu, yu = df["xu"], df["yu"]
+                xl, yl = df["xl"], df["yl"]
+                
+                x1, y1 = rotate(x, y, -5)
+                xu1, yu1 = rotate(xu, yu, -5)
+                xl1, yl1 = rotate(xl, yl, -5)
+                cx1, cy1 = rotate(cx, cy, -5)
+
+                x2, y2 = rotate(x, y, -10)
+                xu2, yu2 = rotate(xu, yu, -10)
+                xl2, yl2 = rotate(xl, yl, -10)
+                cx2, cy2 = rotate(cx, cy, -10)
+
+                x3, y3 = rotate(x, y, -15)
+                xu3, yu3 = rotate(xu, yu, -15)
+                xl3, yl3 = rotate(xl, yl, -15)
+                cx3, cy3 = rotate(cx, cy, -15)
+
+                plt.close('all')
+                fig, a = plt.subplots(nrows=2, ncols=2, figsize=(24, 14), dpi=100)
+                plt.subplots_adjust(hspace=0.3, wspace=0.2)
+
+                plots = [
+                    (a[0,0], "NACA 4412 (AOA 0°)", x, y, cx, cy, xu, yu, xl, yl),
+                    (a[0,1], "NACA 4412 (AOA 5°)", x1, y1, cx1, cy1, xu1, yu1, xl1, yl1),
+                    (a[1,0], "NACA 4412 (AOA 10°)", x2, y2, cx2, cy2, xu2, yu2, xl2, yl2),
+                    (a[1,1], "NACA 4412 (AOA 15°)", x3, y3, cx3, cy3, xu3, yu3, xl3, yl3)
+                ]
+
+                for ax, title, vx, vy, vcx, vcy, vxu, vyu, vxl, vyl in plots:
+                    ax.set_aspect('equal', adjustable='datalim') 
+                    ax.set_title(title, fontsize=18, color='red')
+                    ax.plot(vx, vy, '--', markersize=3, c='black', label="Mean Camber")
+                    ax.plot(vcx, vcy, 'r--', label="Chord Line")
+                    ax.plot(vxu, vyu, 'g', label="Upper Surface")
+                    ax.plot(vxl, vyl, 'b', label="Lower Surface")
+                    ax.legend(fontsize=10, loc='upper right')
+                    ax.grid(True, alpha=0.3)
+
+                hide_loading()
+                display(fig, target="plot-target", append=False)
+            except Exception as e:
+                display(f"Error: {e}", target="plot-target", append=False)
+
+        # --- NACA 9412 LOGIC ---
+        def run_9412(event):
+            try:
+                show_overlay()
+                df = pd.read_csv("NACA 9412 copy.csv", header=5)
+                
+                def rotate(x_list, y_list, angle_deg):
+                    rad = mp.radians(angle_deg)
+                    new_x, new_y = [], []
+                    for i, m in zip(x_list, y_list):
+                        v = mp.cos(rad)*i - mp.sin(rad)*m
+                        w = mp.sin(rad)*i + mp.cos(rad)*m
+                        new_x.append(v)
+                        new_y.append(w)
+                    return new_x, new_y
+
+                x, y = df['X'], df["Yc"]
+                cx, cy = df["Chord X"], df["Chord Y"]
+                xu, yu = df["xu"], df["yu"]
+                xl, yl = df["xl"], df["yl"]
+                
+                x1, y1 = rotate(x, y, -5)
+                xu1, yu1 = rotate(xu, yu, -5)
+                xl1, yl1 = rotate(xl, yl, -5)
+                cx1, cy1 = rotate(cx, cy, -5)
+
+                x2, y2 = rotate(x, y, -10)
+                xu2, yu2 = rotate(xu, yu, -10)
+                xl2, yl2 = rotate(xl, yl, -10)
+                cx2, cy2 = rotate(cx, cy, -10)
+
+                x3, y3 = rotate(x, y, -15)
+                xu3, yu3 = rotate(xu, yu, -15)
+                xl3, yl3 = rotate(xl, yl, -15)
+                cx3, cy3 = rotate(cx, cy, -15)
+
+                plt.close('all')
+                fig, a = plt.subplots(nrows=2, ncols=2, figsize=(24, 14), dpi=100)
+                plt.subplots_adjust(hspace=0.3, wspace=0.2)
+
+                plots = [
+                    (a[0,0], "NACA 9412 (AOA 0°)", x, y, cx, cy, xu, yu, xl, yl),
+                    (a[0,1], "NACA 9412 (AOA 5°)", x1, y1, cx1, cy1, xu1, yu1, xl1, yl1),
+                    (a[1,0], "NACA 9412 (AOA 10°)", x2, y2, cx2, cy2, xu2, yu2, xl2, yl2),
+                    (a[1,1], "NACA 9412 (AOA 15°)", x3, y3, cx3, cy3, xu3, yu3, xl3, yl3)
+                ]
+
+                for ax, title, vx, vy, vcx, vcy, vxu, vyu, vxl, vyl in plots:
+                    ax.set_aspect('equal', adjustable='datalim')
+                    ax.set_title(title, fontsize=18, color='red')
+                    ax.plot(vx, vy, '--', c='black', label="Mean Camber")
+                    ax.plot(vcx, vcy, 'r--', label="Chord Line")
+                    ax.plot(vxu, vyu, 'g', label="Upper Surface")
+                    ax.plot(vxl, vyl, 'b', label="Lower Surface")
+                    ax.grid(True, alpha=0.3)
+                    ax.legend(fontsize=10)
+
+                hide_loading()
+                display(fig, target="plot-target", append=False)
+            except Exception as e:
+                display(f"Error: {e}", target="plot-target", append=False)
+    </script>
+</body>
+</html>

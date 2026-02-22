@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Viewer | Vamshi Krishna</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        :root { --accent-blue: #0071e3; --font-stack: "SF Pro Display", -apple-system, sans-serif; }
+        
+        body {
+            font-family: var(--font-stack);
+            background: #000;
+            margin: 0; height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Nav Bar - Floating Glass */
+        .nav-bar {
+            position: absolute; top: 20px; left: 20px; z-index: 100;
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 10px 20px; border-radius: 98px;
+            color: white; text-decoration: none; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; border: 1px solid rgba(255,255,255,0.1);
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.3); }
+
+        .viewer-container {
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 30%, #3a3a3a, #000000);
+        }
+
+        model-viewer { width: 100%; height: 100%; outline: none; }
+
+        /* HUD Elements */
+        .hud {
+            position: absolute; bottom: 40px; left: 40px; right: 40px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            pointer-events: none;
+        }
+        
+        .model-info h1 {
+            color: white; margin: 0; font-size: 32px; font-weight: 700;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .tool-badge {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px; border-radius: 12px;
+            color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Loading/Error */
+        .status-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(30,30,30,0.9); padding: 20px 30px; border-radius: 16px;
+            text-align: center; color: white; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="nav-bar">
+        <a href="cad.html" class="back-btn">← Close</a>
+    </div>
+
+    <div class="viewer-container">
+        <model-viewer 
+            id="viewer" 
+            camera-controls 
+            auto-rotate 
+            shadow-intensity="1.5"
+            environment-image="neutral"
+            exposure="1"
+            min-camera-orbit="auto 0deg auto"
+            max-camera-orbit="auto 180deg auto">
+        </model-viewer>
+    </div>
+
+    <div class="hud">
+        <div class="model-info">
+            <h1 id="model-name">Loading...</h1>
+        </div>
+        <div id="tool-label" class="tool-badge">SolidWorks</div>
+    </div>
+
+    <div id="status-box" class="status-msg">
+        <h3 id="status-title" style="margin:0 0 5px 0;">Loading</h3>
+        <span id="status-desc" style="color:#aaa; font-size:14px;">Please wait...</span>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const file = params.get('file');
+        const folder = params.get('folder');
+        const name = params.get('name');
+        const tool = params.get('tool');
+
+        const viewer = document.getElementById('viewer');
+        const statusBox = document.getElementById('status-box');
+
+        document.getElementById('model-name').textContent = name || 'Unknown Model';
+        document.getElementById('tool-label').textContent = tool || 'CAD';
+
+        // Error Handling
+        viewer.addEventListener('error', (e) => {
+            statusBox.style.display = 'block';
+            document.getElementById('status-title').textContent = "Error";
+            document.getElementById('status-desc').textContent = "Model file not found.";
+        });
+
+        // Load Logic - FORCE METAL LOOK
+        viewer.addEventListener('load', () => {
+             if (viewer.model && viewer.model.materials) {
+                for (const mat of viewer.model.materials) {
+                    mat.setAlphaMode('OPAQUE');
+                    mat.setDoubleSided(true);
+                    mat.pbrMetallicRoughness.setBaseColorFactor([0.7, 0.7, 0.7, 1.0]); 
+                    mat.pbrMetallicRoughness.setMetallicFactor(1.0); 
+                    mat.pbrMetallicRoughness.setRoughnessFactor(0.15);             
+                }
+            }
+        });
+
+        if (file && folder) {
+            viewer.src = `Cad files/${folder}/${file}`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAE Workspace | Vamshi Krishna</title>
+    
+    <style>
+        /* =========================================
+           1. LIBRARY STYLES (Apple Aesthetic)
+           ========================================= */
+        :root {
+            --bg-color: #fbfbfd;
+            --text-main: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-blue: #0071e3;
+            --card-gradient: linear-gradient(180deg, #f5f5f7 0%, #e1e1e6 100%);
+            --card-border: 1px solid rgba(255,255,255,0.8);
+            --shadow-soft: 0 4px 6px rgba(0,0,0,0.02), 0 10px 15px rgba(0,0,0,0.03);
+            --font-stack: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            transition: background 0.3s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #library-view {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            animation: fadeUp 0.6s ease forwards;
+        }
+
+        .header { text-align: center; margin-bottom: 50px; }
+        .header h1 { font-size: 42px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.015em; }
+        .header p { font-size: 19px; color: var(--text-secondary); }
+
+        .nav-back-home {
+            position: absolute; top: 40px; right: 40px;
+            display: flex; align-items: center; gap: 5px;
+            color: var(--accent-blue); text-decoration: none; font-weight: 500;
+        }
+        .nav-back-home:hover { text-decoration: underline; }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 40px 0 20px 20px;
+            letter-spacing: -0.01em;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding-bottom: 10px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            justify-content: center;
+        }
+
+        .file-card {
+            background: var(--card-gradient);
+            border: var(--card-border);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: var(--shadow-soft);
+            color: var(--text-main);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .file-card:hover { transform: translateY(-6px); box-shadow: 0 15px 35px rgba(0,0,0,0.12); }
+
+        .icon-box {
+            width: 70px; height: 70px;
+            background: white; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            font-size: 32px;
+        }
+
+        .card-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .card-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 15px; line-height: 1.4; flex-grow: 1; }
+        
+        .card-badge {
+            display: inline-block;
+            margin-bottom: 25px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 8px;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .button-group { display: flex; gap: 12px; width: 100%; margin-top: auto; }
+        .btn-action {
+            flex: 1; padding: 12px 0; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-blue { background: #0071e3; color: white; box-shadow: 0 2px 5px rgba(0, 113, 227, 0.2); }
+        .btn-blue:hover { background: #005bb5; transform: translateY(-1px); }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* =========================================
+           2. PROJECT VIEWER (PDF Overlay)
+           ========================================= */
+        #project-view {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #525659;
+            flex-direction: column; z-index: 9999;
+        }
+        
+        body.mode-viewer { overflow: hidden; }
+        body.mode-viewer #project-view { display: flex; }
+        body.mode-viewer #library-view { display: none; }
+
+        .toolbar-container {
+            position: absolute; top: 20px; left: 0; right: 0;
+            display: flex; justify-content: center; z-index: 100; pointer-events: none;
+        }
+        
+        .toolbar {
+            pointer-events: auto; background: rgba(251, 251, 253, 0.95);
+            backdrop-filter: saturate(180%) blur(20px); 
+            border: 1px solid rgba(0,0,0,0.1);
+            padding: 6px 12px 6px 6px; border-radius: 50px; 
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .btn-close {
+            background: #e5e5ea; border: none; color: #ff3b30;
+            width: 36px; height: 36px; cursor: pointer; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .btn-close:hover { background: #ff3b30; color: white; }
+
+        .project-title-badge {
+            color: #1d1d1f; padding: 0 8px;
+            font-size: 14px; font-weight: 600; 
+        }
+
+        .btn-download {
+            background: #0071e3; color: white;
+            padding: 8px 16px; border-radius: 20px;
+            text-decoration: none; font-weight: 600; font-size: 13px;
+            transition: background 0.2s;
+        }
+        .btn-download:hover { background: #005bb5; }
+
+        .viewport { flex: 1; position: relative; width: 100%; height: 100%; margin-top: 80px; }
+        
+        iframe { width: 100%; height: 100%; border: none; outline: none; background: #525659; }
+
+    </style>
+</head>
+<body>
+
+    <div id="library-view">
+        <a href="index.html" class="nav-back-home">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Home
+        </a>
+
+        <div class="header">
+            <h1>CAE Workspace</h1>
+            <p>Select a project to view its analysis report.</p>
+        </div>
+
+        <h2 class="section-title">Fluid Dynamics (STAR-CCM+)</h2>
+        <div class="grid">
+            
+            <div class="file-card">
+                <div class="icon-box">♨️</div>
+                <div class="card-title">Exhaust Manifold</div>
+                <div class="card-subtitle">Thermal analysis tracking temperature gradients and velocity profiles within the manifold.</div>
+                <div class="card-badge">CFD Report</div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openReport('manifold')">View Report</button>
+                </div>
+            </div>
+
+            <div class="file-card">
+                <div class="icon-box">🌊</div>
+                <div class="card-title">Submarine Hull</div>
+                <div class="card-subtitle">Hydrodynamic flow simulation assessing turbulent viscosity and wall shear stress.</div>
+                <div class="card-badge">CFD Report</div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openReport('submarine')">View Report</button>
+                </div>
+            </div>
+
+            <div class="file-card">
+                <div class="icon-box">🏎️</div>
+                <div class="card-title">Toyota 2000 GT</div>
+                <div class="card-subtitle">External aerodynamics analysis of a vintage classic, mapping pressure zones and drag.</div>
+                <div class="card-badge">CFD Report</div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openReport('toyota')">View Report</button>
+                </div>
+            </div>
+
+        </div>
+
+        <h2 class="section-title">Finite Element Analysis (NX Nastran)</h2>
+        <div class="grid">
+            
+            <div class="file-card">
+                <div class="icon-box">🛞</div>
+                <div class="card-title">Car Suspension</div>
+                <div class="card-subtitle">Structural analysis of a suspension system to determine stress distribution and deformation under load.</div>
+                <div class="card-badge">FEA Report</div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openReport('suspension')">View Report</button>
+                </div>
+            </div>
+
+            <div class="file-card">
+                <div class="icon-box">🔩</div>
+                <div class="card-title">Mounting Bracket</div>
+                <div class="card-subtitle">Static load simulation assessing structural integrity, localized stress concentrations, and yield limits.</div>
+                <div class="card-badge">FEA Report</div>
+                <div class="button-group">
+                    <button class="btn-action btn-blue" onclick="openReport('bracket')">View Report</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="project-view">
+        <div class="toolbar-container">
+            <div class="toolbar">
+                <button onclick="closeReport()" class="btn-close" title="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+                <div id="active-report-name" class="project-title-badge">Loading...</div>
+                <a id="download-link" href="#" class="btn-download" download>Download PDF</a>
+            </div>
+        </div>
+
+        <div class="viewport">
+            <iframe id="pdfFrame" src=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // Ensure your PDFs are inside a folder named "CAE" at the root level.
+        const reports = {
+            'manifold': {
+                name: "Exhaust Manifold CFD Analysis",
+                file: "CAE/Exuast manifold.pdf"
+            },
+            'submarine': {
+                name: "Submarine CFD Analysis",
+                file: "CAE/Submarine.pdf"
+            },
+            'toyota': {
+                name: "Toyota GT 2000 CFD Analysis",
+                file: "CAE/TOYOTA GT 2000.pdf"
+            },
+            'suspension': {
+                name: "Car Suspension FEA Report",
+                file: "CAE/Car Suspension.pdf"
+            },
+            'bracket': {
+                name: "Mounting Bracket FEA Report",
+                file: "CAE/Mounting Bracket.pdf"
+            }
+        };
+
+        // --- GLOBALS ---
+        const pdfFrame = document.getElementById('pdfFrame');
+        const titleBadge = document.getElementById('active-report-name');
+        const downloadLink = document.getElementById('download-link');
+
+        // --- NAVIGATION LOGIC ---
+        function openReport(key) {
+            const config = reports[key];
+            if(!config) return;
+
+            // Activate Viewer Mode
+            document.body.classList.add('mode-viewer');
+            
+            // Populate Data
+            titleBadge.innerText = config.name;
+            
+            // Adding #view=Fit helps the PDF scale nicely in modern browsers
+            pdfFrame.src = config.file + "#view=Fit"; 
+            downloadLink.href = config.file;
+        }
+
+        function closeReport() {
+            // Deactivate Viewer Mode
+            document.body.classList.remove('mode-viewer');
+            
+            // Clear iframe to stop it from running in the background
+            setTimeout(() => {
+                pdfFrame.src = "";
+            }, 300); // Wait for CSS transition to finish before clearing
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Milling Simulator (Ultra-Fine & Slow)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; background: #0f1115; color: #e0e0e0; font-family: 'Inter', sans-serif; overflow: hidden; user-select: none; }
+        
+        /* Sidebar */
+        .sidebar {
+            position: absolute; top: 0; left: 0; bottom: 0;
+            width: 300px; background: rgba(20, 22, 28, 0.95);
+            border-right: 1px solid #333;
+            display: flex; flex-direction: column;
+            padding: 20px; box-sizing: border-box;
+            z-index: 100; pointer-events: auto;
+        }
+
+        h3 { margin: 0 0 5px 0; color: #fff; font-weight: 600; }
+        h4 { margin: 20px 0 10px 0; font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px; }
+
+        /* File Input */
+        .file-zone {
+            border: 1px dashed #444; padding: 15px; border-radius: 6px;
+            text-align: center; margin-bottom: 10px; cursor: pointer; transition: 0.2s;
+        }
+        .file-zone:hover { border-color: #64FFDA; background: rgba(100, 255, 218, 0.05); }
+        input[type="file"] { width: 100%; font-size: 11px; color: #aaa; }
+
+        /* Controls */
+        .control-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        button {
+            flex: 1; padding: 10px; border: none; border-radius: 4px;
+            font-weight: 600; cursor: pointer; color: white; font-size: 12px;
+            transition: 0.2s;
+        }
+        .btn-play { background: #2E7D32; } .btn-play:hover { background: #388E3C; }
+        .btn-pause { background: #C62828; } .btn-pause:hover { background: #E53935; }
+        .btn-reset { background: #424242; } .btn-reset:hover { background: #616161; }
+
+        /* Info */
+        .info-panel {
+            font-family: 'Roboto Mono', monospace; font-size: 11px;
+            background: #000; padding: 10px; border-radius: 4px;
+            border: 1px solid #333; margin-top: auto;
+        }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .val { color: #64FFDA; }
+
+        #status { font-size: 12px; margin-bottom: 15px; padding: 8px; border-radius: 4px; text-align: center; }
+        .status-idle { background: #222; color: #aaa; }
+        .status-active { background: rgba(100, 255, 218, 0.1); color: #64FFDA; border: 1px solid #00695C; }
+
+        /* Help Text overlay */
+        .help-overlay {
+            position: absolute; bottom: 20px; left: 340px;
+            color: #666; font-size: 12px; pointer-events: none;
+        }
+
+        canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+        
+        /* Range Slider */
+        input[type=range] { width: 100%; accent-color: #64FFDA; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h3>3D G-Code Simulator</h3>
+        <div id="status" class="status-idle">Ready</div>
+
+        <h4>1. Load File</h4>
+        <div class="file-zone">
+            <input type="file" id="fileInput" accept=".nc,.gcode,.txt">
+        </div>
+
+        <h4>2. Simulation</h4>
+        <div class="control-group">
+            <button class="btn-play" onclick="startSim()">► Run</button>
+            <button class="btn-pause" onclick="pauseSim()">❚❚ Pause</button>
+            <button class="btn-reset" onclick="resetSim()">↻ Reset</button>
+        </div>
+        
+        <label style="font-size:11px; color:#888; display:flex; justify-content:space-between;">
+            <span>Speed Control</span>
+            <span id="speedDisplay">0.25x</span>
+        </label>
+        <input type="range" id="speedRange" min="1" max="100" value="50" oninput="updateSpeedLabel()">
+
+        <div class="info-panel">
+            <div class="info-row"><span>Lines:</span> <span class="val" id="lineCount">0</span> / <span id="totalLines">0</span></div>
+            <div class="info-row"><span>X:</span> <span class="val" id="posX">0.00</span></div>
+            <div class="info-row"><span>Y:</span> <span class="val" id="posY">0.00</span></div>
+            <div class="info-row"><span>Z:</span> <span class="val" id="posZ">0.00</span></div>
+        </div>
+    </div>
+
+    <div class="help-overlay">
+        🖱️ <b>Left Drag:</b> Rotate &nbsp;|&nbsp; 🖱️ <b>Right Drag:</b> Pan &nbsp;|&nbsp; 🖱️ <b>Scroll:</b> Zoom
+    </div>
+
+    <canvas id="cvs"></canvas>
+
+    <script>
+        // --- CONFIG ---
+        const AUTO_FILE = 'Cam,part1,G-Code.txt';
+        
+        // --- CANVAS & 3D ENGINE ---
+        const canvas = document.getElementById('cvs');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        // Camera State
+        let cam = {
+            pitch: -0.5,    // Rotation around X
+            yaw: 0.5,       // Rotation around Y
+            scale: 5,       // Zoom
+            panX: 0,        // X Offset
+            panY: 0         // Y Offset
+        };
+
+        // Interaction State
+        let isDragging = false;
+        let lastMouse = { x:0, y:0 };
+        let mouseButton = 0; // 0=Left, 2=Right
+
+        // Simulation State
+        let commands = [];
+        let currentIndex = 0;
+        let isRunning = false;
+        let simTimeout = null; // Changed from Interval to Timeout for variable speed
+        let currentPos = { x:0, y:0, z:0 };
+
+        // --- 3D MATH HELPER ---
+        function project(x, y, z) {
+            let x1 = x * Math.cos(cam.yaw) - z * Math.sin(cam.yaw);
+            let z1 = x * Math.sin(cam.yaw) + z * Math.cos(cam.yaw);
+            let y2 = y * Math.cos(cam.pitch) - z1 * Math.sin(cam.pitch);
+            let z2 = y * Math.sin(cam.pitch) + z1 * Math.cos(cam.pitch);
+            let screenX = (width / 2) + cam.panX + (x1 * cam.scale);
+            let screenY = (height / 2) + cam.panY - (y2 * cam.scale);
+            return { x: screenX, y: screenY, depth: z2 };
+        }
+
+        // --- RENDER LOOP ---
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            drawFrame();
+        }
+        window.addEventListener('resize', resize);
+
+        function drawFrame() {
+            // 1. Background
+            ctx.fillStyle = '#0f1115';
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Grid (Ultra-Thin)
+            ctx.lineWidth = 0.3; 
+            ctx.strokeStyle = '#333';
+            ctx.beginPath();
+            const gridSize = 100;
+            const step = 20;
+            for(let i=-gridSize; i<=gridSize; i+=step) {
+                let p1 = project(i, -gridSize, 0);
+                let p2 = project(i, gridSize, 0);
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                
+                let p3 = project(-gridSize, i, 0);
+                let p4 = project(gridSize, i, 0);
+                ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+            }
+            ctx.stroke();
+
+            // 3. Axis (XYZ)
+            let origin = project(0,0,0);
+            let xAxis = project(20,0,0);
+            let yAxis = project(0,20,0);
+            let zAxis = project(0,0,20);
+            
+            ctx.lineWidth = 1.0; // Slightly thicker than grid
+            ctx.beginPath(); ctx.strokeStyle = '#EF5350'; ctx.moveTo(origin.x, origin.y); ctx.lineTo(xAxis.x, xAxis.y); ctx.stroke(); // Red
+            ctx.beginPath(); ctx.strokeStyle = '#66BB6A'; ctx.moveTo(origin.x, origin.y); ctx.lineTo(yAxis.x, yAxis.y); ctx.stroke(); // Green
+            ctx.beginPath(); ctx.strokeStyle = '#42A5F5'; ctx.moveTo(origin.x, origin.y); ctx.lineTo(zAxis.x, zAxis.y); ctx.stroke(); // Blue
+
+            // 4. Draw Path
+            if (commands.length === 0) return;
+
+            let prev = project(0,0,0);
+            if(commands[0].x != null) prev = project(commands[0].x, commands[0].y, commands[0].z || 0);
+
+            let curX=0, curY=0, curZ=0;
+
+            // DRAW OPTIMIZATION:
+            // We draw cut and rapid paths separately to avoid state change thrashing if possible, 
+            // but for simplicity and correctness of order, we iterate linearly.
+            
+            for(let i=0; i<currentIndex; i++) {
+                const cmd = commands[i];
+                if (cmd.x !== null) curX = cmd.x;
+                if (cmd.y !== null) curY = cmd.y;
+                if (cmd.z !== null) curZ = cmd.z;
+
+                const currP = project(curX, curY, curZ);
+
+                ctx.beginPath();
+                ctx.moveTo(prev.x, prev.y);
+                ctx.lineTo(currP.x, currP.y);
+
+                if (cmd.type === 'rapid') {
+                    // RAPID: Micro-weight
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; 
+                    ctx.lineWidth = 0.15;
+                } else {
+                    // CUT: Thin, precise
+                    ctx.strokeStyle = '#64FFDA'; 
+                    ctx.lineWidth = 0.4;
+                }
+                ctx.stroke();
+
+                prev = currP;
+            }
+
+            // 5. Tool Head
+            ctx.fillStyle = '#64FFDA';
+            ctx.beginPath();
+            ctx.arc(prev.x, prev.y, 2.5, 0, Math.PI*2); // Smaller head
+            ctx.fill();
+        }
+
+        // --- INPUT HANDLING ---
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            lastMouse = { x: e.clientX, y: e.clientY };
+            mouseButton = e.button; 
+            e.preventDefault();
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastMouse.x;
+            const dy = e.clientY - lastMouse.y;
+            
+            if (mouseButton === 2) { 
+                cam.panX += dx;
+                cam.panY += dy;
+            } else {
+                cam.yaw += dx * 0.01;
+                cam.pitch += dy * 0.01;
+                cam.pitch = Math.max(-Math.PI, Math.min(Math.PI, cam.pitch));
+            }
+            lastMouse = { x: e.clientX, y: e.clientY };
+            drawFrame();
+        });
+
+        canvas.addEventListener('wheel', e => {
+            const zoomSpeed = 0.001 * cam.scale;
+            cam.scale -= e.deltaY * zoomSpeed;
+            if (cam.scale < 0.1) cam.scale = 0.1;
+            drawFrame();
+            e.preventDefault();
+        }, { passive: false });
+
+        // --- SPEED UI ---
+        function updateSpeedLabel() {
+            const val = parseInt(document.getElementById('speedRange').value);
+            // Map 1-100 to 0.1x - 0.5x
+            const speedFactor = 0.1 + ((val / 100) * 0.4);
+            document.getElementById('speedDisplay').innerText = speedFactor.toFixed(2) + "x";
+        }
+
+        // --- SIMULATION LOGIC ---
+        function parseGCode(text) {
+            const lines = text.split('\n');
+            const clean = [];
+            let x=0, y=0, z=0;
+
+            lines.forEach(line => {
+                const uLine = line.trim().toUpperCase();
+                if (!uLine || uLine[0] === '(' || uLine[0] === '%') return;
+
+                const cmd = { x: null, y: null, z: null, type: 'other' };
+                if (uLine.includes('G0') || uLine.includes('G00')) cmd.type = 'rapid';
+                else if (uLine.includes('G1') || uLine.includes('G01')) cmd.type = 'cut';
+                else if (uLine.includes('G2') || uLine.includes('G3')) cmd.type = 'cut';
+
+                const xMatch = /X([-0-9.]+)/.exec(uLine);
+                const yMatch = /Y([-0-9.]+)/.exec(uLine);
+                const zMatch = /Z([-0-9.]+)/.exec(uLine);
+
+                if (xMatch) x = parseFloat(xMatch[1]);
+                if (yMatch) y = parseFloat(yMatch[1]);
+                if (zMatch) z = parseFloat(zMatch[1]);
+
+                cmd.x = x; cmd.y = y; cmd.z = z;
+                clean.push(cmd);
+            });
+            return clean;
+        }
+
+        function runStep() {
+            if (!isRunning) return;
+            if (currentIndex >= commands.length) {
+                pauseSim();
+                document.getElementById('status').innerText = "Finished";
+                return;
+            }
+
+            // Update UI
+            const cmd = commands[currentIndex];
+            if(cmd.x !== null) document.getElementById('posX').innerText = cmd.x.toFixed(2);
+            if(cmd.y !== null) document.getElementById('posY').innerText = cmd.y.toFixed(2);
+            if(cmd.z !== null) document.getElementById('posZ').innerText = cmd.z.toFixed(2);
+            currentIndex++;
+            document.getElementById('lineCount').innerText = currentIndex;
+            
+            drawFrame();
+
+            // VARIABLE SPEED DELAY
+            // Slider 1-100
+            // We want Max Speed (100) -> 15ms delay (approx 60fps)
+            // We want Min Speed (1) -> 500ms delay (2 lines per second)
+            const val = parseInt(document.getElementById('speedRange').value);
+            const delay = 500 - (val * 4.8); // 500ms at val 1, ~20ms at val 100
+
+            simTimeout = setTimeout(runStep, delay);
+        }
+
+        function startSim() {
+            if (isRunning) return;
+            if (commands.length === 0) {
+                alert("Please load a file first.");
+                return;
+            }
+            isRunning = true;
+            document.getElementById('status').innerText = "Running...";
+            document.getElementById('status').className = 'status-active';
+            
+            runStep(); // Start loop
+        }
+
+        function pauseSim() {
+            isRunning = false;
+            clearTimeout(simTimeout);
+            document.getElementById('status').innerText = "Paused";
+            document.getElementById('status').className = 'status-idle';
+        }
+
+        function resetSim() {
+            pauseSim();
+            currentIndex = 0;
+            drawFrame();
+            document.getElementById('lineCount').innerText = 0;
+            document.getElementById('status').innerText = "Reset";
+        }
+
+        function loadGCode(text, filename) {
+            resetSim();
+            commands = parseGCode(text);
+            document.getElementById('totalLines').innerText = commands.length;
+            document.getElementById('status').innerText = "Loaded: " + filename;
+            
+            let minX=Infinity, maxX=-Infinity;
+            commands.forEach(c => {
+                if(c.x < minX) minX = c.x; if(c.x > maxX) maxX = c.x;
+            });
+            const rangeX = Math.abs(maxX - minX) || 100;
+            cam.scale = (Math.min(width, height) / rangeX) * 0.5;
+            cam.panX = 0; cam.panY = 0;
+            drawFrame();
+        }
+
+        // --- FILE LISTENERS ---
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = (ev) => loadGCode(ev.target.result, file.name);
+            r.readAsText(file);
+        });
+
+        // Auto Load
+        fetch(AUTO_FILE).then(r => {
+            if(r.ok) return r.text();
+            throw new Error('Skip');
+        }).then(t => loadGCode(t, AUTO_FILE)).catch(e => console.log('Waiting for file'));
+
+        updateSpeedLabel(); // Init label
+        resize();
+
+    </script>
+</body>
+</html>
