@@ -303,30 +303,28 @@
 
     <script>
         // --- CONFIGURATION ---
+        // Direct file paths for seamless GitHub Pages integration
         const projects = {
             'part1': {
                 name: "Adaptive Clearing",
-                folder: 'part1',
-                glb: 'part1_cad.glb',
-                video: 'part1_video.mp4',
-                pdf: 'Part1_pages.pdf',
-                gcode: 'g_code.txt'
+                glb: 'cam/part1/part1_cad.glb',
+                video: 'cam/part1/part1_video.mp4',
+                pdf: 'cam/part1/Part1_pages.pdf',
+                gcode: 'cam/part1/g_code.txt'
             },
             'part2': {
                 name: "Bottle",
-                folder: 'bottle', 
-                glb: 'botella_cad.glb',
-                video: 'botella_video.mp4',
-                pdf: 'botella_pages.pdf',
-                gcode: 'botella_code.txt'
+                glb: 'cam/bottle/botella_cad.glb',
+                video: 'cam/bottle/botella_video.mp4',
+                pdf: 'cam/bottle/botella_pages.pdf',
+                gcode: 'cam/bottle/botella_code.txt'
             },
             'watercan': {
                 name: "Water Can",
-                folder: 'water_can', 
-                glb: 'water_cad.glb',
-                video: 'water_video.mp4',
-                pdf: 'water_can_pages.pdf',
-                gcode: 'water_code.txt'
+                glb: 'cam/water_can/water_cad.glb',
+                video: 'cam/water_can/water_video.mp4',
+                pdf: 'cam/water_can/water_can_pages.pdf',
+                gcode: 'cam/water_can/water_code.txt'
             }
         };
 
@@ -373,18 +371,18 @@
 
             document.body.classList.add('mode-viewer');
             titleBadge.innerText = config.name;
-            const basePath = `cam/${config.folder}/`;
 
-            model3d.src = basePath + config.glb;
-            vidPlayer.src = basePath + config.video;
-            pdfFrame.src = basePath + config.pdf + "#view=Fit";
+            // Apply the direct paths directly to the sources
+            model3d.src = config.glb;
+            vidPlayer.src = config.video;
+            pdfFrame.src = config.pdf + "#view=Fit";
             
             // Clear current G-Code view
             gcodeContent.innerText = "Loading...";
-            gcodeDownload.href = basePath + config.gcode;
+            gcodeDownload.href = config.gcode;
 
             // Load G-Code (For Text View AND Simulation)
-            fetch(basePath + config.gcode)
+            fetch(config.gcode)
                 .then(r => r.text())
                 .then(text => {
                     // 1. Populate Text View
