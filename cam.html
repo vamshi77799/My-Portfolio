@@ -198,6 +198,20 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             z-index: 200;
         }
+
+        /* Loading/Error */
+        .status-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(30,30,30,0.9); padding: 20px 30px; border-radius: 16px;
+            text-align: center; color: white; display: none; flex-direction: column; align-items: center;
+            z-index: 1000;
+        }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         
     </style>
 </head>
@@ -257,6 +271,11 @@
 
         <div class="viewport">
             <div id="view-3d" class="view-section active">
+                <div id="status-box" class="status-msg">
+                    <div id="loading-spinner" class="spinner"></div>
+                    <h3 id="status-title" style="margin:0 0 5px 0;">Loading</h3>
+                    <span id="status-desc" style="color:#aaa; font-size:14px;">Please wait...</span>
+                </div>
                 <model-viewer 
                     id="model3d" 
                     camera-controls 
@@ -336,6 +355,11 @@
         const gcodeDownload = document.getElementById('gcode-download');
         const titleBadge = document.getElementById('active-project-name');
         
+        const statusBox = document.getElementById('status-box');
+        const statusTitle = document.getElementById('status-title');
+        const statusDesc = document.getElementById('status-desc');
+        const spinner = document.getElementById('loading-spinner');
+        
         // --- SIMULATOR GLOBALS ---
         const canvas = document.getElementById('sim-canvas');
         const ctx = canvas.getContext('2d');
@@ -372,6 +396,12 @@
             document.body.classList.add('mode-viewer');
             titleBadge.innerText = config.name;
 
+            // Show Loading
+            statusBox.style.display = 'flex';
+            spinner.style.display = 'block';
+            statusTitle.textContent = "Loading";
+            statusDesc.textContent = "Please wait...";
+
             // Apply the direct paths directly to the sources
             model3d.src = config.glb;
             vidPlayer.src = config.video;
@@ -404,6 +434,7 @@
             isPlaying = false;
             cancelAnimationFrame(animFrameId);
             model3d.src = ""; 
+            statusBox.style.display = 'none';
         }
 
         function switchView(viewName) {
@@ -633,7 +664,21 @@
             requestAnimationFrame(drawScene);
         }, { passive: false });
 
+        // --- MODEL EVENTS ---
+        model3d.addEventListener('progress', (e) => {
+            const percent = parseInt(e.detail.totalProgress * 100);
+            statusDesc.textContent = `Loading ${percent}%`;
+        });
+
+        model3d.addEventListener('error', (e) => {
+            statusBox.style.display = 'flex';
+            spinner.style.display = 'none';
+            statusTitle.textContent = "Error";
+            statusDesc.textContent = "Model file not found.";
+        });
+
         model3d.addEventListener('load', () => {
+            statusBox.style.display = 'none';
             if (model3d.model?.materials) {
                 for (const mat of model3d.model.materials) {
                     mat.pbrMetallicRoughness.setBaseColorFactor([0.6, 0.6, 0.6, 1.0]); 

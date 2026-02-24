@@ -95,15 +95,19 @@
             display: block;
         }
 
-        .loading-msg {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 14px;
-            z-index: 0; /* Behind the iframe */
+        /* Loading */
+        .status-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(30,30,30,0.9); padding: 20px 30px; border-radius: 16px;
+            text-align: center; color: white; display: flex; flex-direction: column; align-items: center;
+            z-index: 10;
         }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
     </style>
 </head>
@@ -127,7 +131,10 @@
     </div>
 
     <div class="pdf-container">
-        <div class="loading-msg">Loading PDF Preview...</div>
+        <div id="loading-box" class="status-msg">
+            <div class="spinner"></div>
+            <span style="font-size:14px; color:#ccc;">Loading PDF...</span>
+        </div>
         <iframe id="pdf-frame" src=""></iframe>
     </div>
 
@@ -149,8 +156,10 @@
         document.getElementById('link-numbers').href = numbersPath;
         document.getElementById('link-pdf').href = pdfPath;
         
-        // Load the PDF into the iframe
-        document.getElementById('pdf-frame').src = pdfPath;
+        // Load the PDF into the iframe with loading state
+        const pdfFrame = document.getElementById('pdf-frame');
+        pdfFrame.onload = () => { document.getElementById('loading-box').style.display = 'none'; };
+        pdfFrame.src = pdfPath;
     </script>
 </body>
 </html>

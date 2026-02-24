@@ -166,6 +166,19 @@
         
         iframe { width: 100%; height: 100%; border: none; outline: none; background: #525659; }
 
+        /* Loading */
+        .status-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(30,30,30,0.9); padding: 20px 30px; border-radius: 16px;
+            text-align: center; color: white; display: none; flex-direction: column; align-items: center;
+            z-index: 10;
+        }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -254,6 +267,10 @@
         </div>
 
         <div class="viewport">
+            <div id="loading-box" class="status-msg">
+                <div class="spinner"></div>
+                <span style="font-size:14px; color:#ccc;">Loading PDF...</span>
+            </div>
             <iframe id="pdfFrame" src=""></iframe>
         </div>
     </div>
@@ -288,6 +305,7 @@
         const pdfFrame = document.getElementById('pdfFrame');
         const titleBadge = document.getElementById('active-report-name');
         const downloadLink = document.getElementById('download-link');
+        const loadingBox = document.getElementById('loading-box');
 
         // --- NAVIGATION LOGIC ---
         function openReport(key) {
@@ -300,6 +318,12 @@
             // Populate Data
             titleBadge.innerText = config.name;
             
+            // Show loading
+            loadingBox.style.display = 'flex';
+            pdfFrame.onload = () => {
+                loadingBox.style.display = 'none';
+            };
+
             // Adding #view=Fit helps the PDF scale nicely in modern browsers
             pdfFrame.src = config.file + "#view=Fit"; 
             downloadLink.href = config.file;
@@ -309,6 +333,7 @@
             // Deactivate Viewer Mode
             document.body.classList.remove('mode-viewer');
             
+            loadingBox.style.display = 'none';
             // Clear iframe to stop it from running in the background
             setTimeout(() => {
                 pdfFrame.src = "";
