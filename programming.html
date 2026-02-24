@@ -217,7 +217,7 @@
                         <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
                         <span class="filename">NACA 4412.py</span>
                     </div>
-                    <button class="run-btn-header" py-click="run_4412">▶ Run Full Screen</button>
+                    <button id="btn-4412" class="run-btn-header" py-click="run_4412">▶ Run Full Screen</button>
                 </div>
 <pre class="code-content">
 import pandas as pd
@@ -293,7 +293,7 @@ plt.show()
                         <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
                         <span class="filename">NACA 9412.py</span>
                     </div>
-                    <button class="run-btn-header" py-click="run_9412">▶ Run Full Screen</button>
+                    <button id="btn-9412" class="run-btn-header" py-click="run_9412">▶ Run Full Screen</button>
                 </div>
 <pre class="code-content">
 import pandas as pd
@@ -617,20 +617,28 @@ plt.show()
         from pyscript import display
         from js import document
 
-        def show_overlay():
+        # Function to prepare and open the fullscreen UI only when ready
+        def open_results_ui():
             document.getElementById('fullscreen-overlay').classList.add('active')
             document.getElementById('audioCanvas').style.display = 'none'
             document.getElementById('plot-target').style.display = 'flex'
-            document.getElementById('loading-box').style.display = 'flex'
-
-        def hide_loading():
-            document.getElementById('loading-box').style.display = 'none'
+            document.getElementById('loading-box').style.display = 'none' # Hide the old spinner
+            document.getElementById('plot-target').innerHTML = "" 
 
         # --- NACA 4412 LOGIC ---
         async def run_4412(event):
+            btn = document.getElementById("btn-4412")
+            
+            # 1. Update UI on the main page
+            btn.innerHTML = "⏳ Running Script..."
+            btn.style.backgroundColor = "#ffbd2e" # Yellow
+            btn.style.color = "black"
+            
+            # Yield to browser so it can visually update the button
+            await asyncio.sleep(0.1) 
+            
             try:
-                show_overlay()
-                await asyncio.sleep(0.1)
+                # 2. Heavy Math & Plotting
                 df = pd.read_csv("NACA 4412 copy.csv", header=5)
                 
                 def rotate(x_list, y_list, angle_deg):
@@ -684,16 +692,34 @@ plt.show()
                     ax.legend(fontsize=10, loc='upper right')
                     ax.grid(True, alpha=0.3)
 
-                hide_loading()
+                # 3. Open UI and display
+                open_results_ui()
                 display(fig, target="plot-target", append=False)
+                
             except Exception as e:
+                open_results_ui()
                 display(f"Error: {e}", target="plot-target", append=False)
+                
+            finally:
+                # 4. Reset Button
+                btn.innerHTML = "▶ Run Full Screen"
+                btn.style.backgroundColor = "#34C759"
+                btn.style.color = "white"
 
         # --- NACA 9412 LOGIC ---
         async def run_9412(event):
+            btn = document.getElementById("btn-9412")
+            
+            # 1. Update UI on the main page
+            btn.innerHTML = "⏳ Running Script..."
+            btn.style.backgroundColor = "#ffbd2e" # Yellow
+            btn.style.color = "black"
+            
+            # Yield to browser so it can visually update the button
+            await asyncio.sleep(0.1) 
+            
             try:
-                show_overlay()
-                await asyncio.sleep(0.1)
+                # 2. Heavy Math & Plotting
                 df = pd.read_csv("NACA 9412 copy.csv", header=5)
                 
                 def rotate(x_list, y_list, angle_deg):
@@ -747,10 +773,19 @@ plt.show()
                     ax.grid(True, alpha=0.3)
                     ax.legend(fontsize=10)
 
-                hide_loading()
+                # 3. Open UI and display
+                open_results_ui()
                 display(fig, target="plot-target", append=False)
+                
             except Exception as e:
+                open_results_ui()
                 display(f"Error: {e}", target="plot-target", append=False)
+                
+            finally:
+                # 4. Reset Button
+                btn.innerHTML = "▶ Run Full Screen"
+                btn.style.backgroundColor = "#34C759"
+                btn.style.color = "white"
     </script>
 </body>
 </html>
