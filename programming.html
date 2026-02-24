@@ -167,7 +167,20 @@
         .close-btn:hover { background: #555; }
         
         .hidden { display: none; }
-        .loading-text { font-size: 18px; color: var(--text-secondary); margin-bottom: 20px; }
+        
+        /* Loading */
+        .status-msg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(30,30,30,0.9); padding: 20px 30px; border-radius: 16px;
+            text-align: center; color: white; display: flex; flex-direction: column; align-items: center;
+            z-index: 10;
+        }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #fff; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 
     <py-config>
@@ -435,7 +448,10 @@ plt.show()
 
     <div id="fullscreen-overlay" class="fullscreen-overlay">
         <button class="close-btn" onclick="closeModal()">×</button>
-        <div class="loading-text" id="loading-msg">Initializing...</div>
+        <div id="loading-box" class="status-msg">
+            <div class="spinner"></div>
+            <span id="loading-text" style="font-size:14px; color:#ccc;">Initializing...</span>
+        </div>
         
         <div id="plot-target" class="plot-container"></div>
         
@@ -478,23 +494,27 @@ plt.show()
             }
             document.getElementById('audioCanvas').style.display = 'none';
             document.getElementById('plot-target').style.display = 'flex';
-            document.getElementById('loading-msg').style.display = 'block';
+            document.getElementById('loading-box').style.display = 'flex';
+            document.getElementById('loading-text').textContent = "Initializing...";
         }
 
         async function startRealTimeAudio() {
             const overlay = document.getElementById('fullscreen-overlay');
             const canvas = document.getElementById('audioCanvas');
             const plotTarget = document.getElementById('plot-target');
-            const loadMsg = document.getElementById('loading-msg');
+            const loadBox = document.getElementById('loading-box');
+            const loadText = document.getElementById('loading-text');
             
             overlay.classList.add('active');
             plotTarget.style.display = 'none';
             canvas.style.display = 'block';
-            loadMsg.textContent = "Requesting Microphone Access...";
+            
+            loadBox.style.display = 'flex';
+            loadText.textContent = "Requesting Microphone Access...";
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                loadMsg.style.display = 'none';
+                loadBox.style.display = 'none';
 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const source = audioContext.createMediaStreamSource(stream);
@@ -583,8 +603,8 @@ plt.show()
 
             } catch (err) {
                 console.error(err);
-                loadMsg.textContent = "Error: Could not access microphone. " + err;
-                loadMsg.style.display = 'block';
+                loadText.textContent = "Error: Could not access microphone. " + err;
+                loadBox.style.display = 'flex';
             }
         }
     </script>
@@ -593,6 +613,7 @@ plt.show()
         import pandas as pd
         import matplotlib.pyplot as plt
         import math as mp
+        import asyncio
         from pyscript import display
         from js import document
 
@@ -600,14 +621,16 @@ plt.show()
             document.getElementById('fullscreen-overlay').classList.add('active')
             document.getElementById('audioCanvas').style.display = 'none'
             document.getElementById('plot-target').style.display = 'flex'
+            document.getElementById('loading-box').style.display = 'flex'
 
         def hide_loading():
-            document.getElementById('loading-msg').style.display = 'none'
+            document.getElementById('loading-box').style.display = 'none'
 
         # --- NACA 4412 LOGIC ---
-        def run_4412(event):
+        async def run_4412(event):
             try:
                 show_overlay()
+                await asyncio.sleep(0.1)
                 df = pd.read_csv("NACA 4412 copy.csv", header=5)
                 
                 def rotate(x_list, y_list, angle_deg):
@@ -667,9 +690,10 @@ plt.show()
                 display(f"Error: {e}", target="plot-target", append=False)
 
         # --- NACA 9412 LOGIC ---
-        def run_9412(event):
+        async def run_9412(event):
             try:
                 show_overlay()
+                await asyncio.sleep(0.1)
                 df = pd.read_csv("NACA 9412 copy.csv", header=5)
                 
                 def rotate(x_list, y_list, angle_deg):
