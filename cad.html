@@ -152,8 +152,8 @@
 
         <div class="tabs-container">
             <button class="tab-btn active" onclick="setCategory('All')">All</button>
-            <button class="tab-btn" onclick="setCategory('Solid')">Solid</button>
             <button class="tab-btn" onclick="setCategory('Surface')">Surface</button>
+            <button class="tab-btn" onclick="setCategory('Solid')">Solid</button>
             <button class="tab-btn" onclick="setCategory('Sheet')">Sheet Metal</button>
         </div>
 
@@ -177,6 +177,11 @@
         };
 
         const myFiles = [
+            // --- SURFACE FILES (UPDATED) ---
+            { displayName: "Toyota GT 2000", fileName: "TOYOTA GT 2000.glb", folder: "Surface", type: "GLB", tool: "NX 12" },
+            { displayName: "Motocross Helmet", fileName: "Motocross_helmet.glb", folder: "Surface", type: "GLB", tool: "NX 12" },
+            { displayName: "Motocross Goggles", fileName: "Motocross_goggles.glb", folder: "Surface", type: "GLB", tool: "NX 12" },
+            
             // --- SOLID FILES ---
             { displayName: "Carving Knife", fileName: "Carving_knife.glb", folder: "Solid", type: "GLB", tool: "SolidWorks" },
             { displayName: "Feed Check Valve", fileName: "Feed_check_valve.glb", folder: "Solid", type: "GLB", tool: "SolidWorks" },
@@ -186,10 +191,7 @@
             { displayName: "Beginner Part 013", fileName: "Blender-CAD_Beginner_013.glb", folder: "Solid", type: "GLB", tool: "SolidWorks" },
             { displayName: "Beginner Part 019", fileName: "Blender-CAD_Beginner_019.glb", folder: "Solid", type: "GLB", tool: "SolidWorks" },
             
-            // --- SURFACE FILES (UPDATED) ---
-            { displayName: "Toyota GT 2000", fileName: "TOYOTA GT 2000.glb", folder: "Surface", type: "GLB", tool: "NX 12" },
-            { displayName: "Motocross Helmet", fileName: "Motocross_helmet.glb", folder: "Surface", type: "GLB", tool: "NX 12" },
-            { displayName: "Motocross Goggles", fileName: "Motocross_goggles.glb", folder: "Surface", type: "GLB", tool: "NX 12" },
+            
             // Uploaded Surface Files (Set to SolidWorks)
             { displayName: "Earbuds", fileName: "Earbuds.glb", folder: "Surface", type: "GLB", tool: "SolidWorks" },
             { displayName: "Helmet", fileName: "Helmet.glb", folder: "Surface", type: "GLB", tool: "SolidWorks" },
